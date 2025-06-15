@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오늘의 편지</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(45deg, #f8f8f8 0%, #ffffff 25%, #f5f5f5 50%, #ffffff 75%, #f8f8f8 100%);
+            background-size: 40px 40px;
+            background-attachment: fixed;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            position: relative;
+            width: 800px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 첫 번째 화면 - 닫힌 상태 */
+        .screen-closed {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        .screen-closed.hidden {
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+        }
+
+        .title-image-closed {
+            width: 600px;
+            height: 80px;
+            object-fit: contain;
+            margin-bottom: 50px;
+        }
+
+        .envelope-closed {
+            width: 400px;
+            height: 300px;
+            object-fit: contain;
+            margin-bottom: 50px;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+        }
+
+        .button-open {
+            width: 150px;
+            height: 60px;
+            object-fit: contain;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .button-open:hover {
+            transform: translateY(-3px) scale(1.05);
+            filter: brightness(1.1) drop-shadow(0 8px 15px rgba(0,0,0,0.3));
+        }
+
+        .button-open:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        /* 두 번째 화면 - 열린 상태 */
+        .screen-open {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            position: absolute;
+            transition: opacity 0.5s ease;
+        }
+
+        .screen-open.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .title-image-open {
+            width: 600px;
+            height: 80px;
+            object-fit: contain;
+            margin-bottom: 50px;
+        }
+
+        .envelope-section {
+            position: relative;
+            width: 400px;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 50px;
+        }
+
+        .envelope-open {
+            width: 400px;
+            height: 300px;
+            object-fit: contain;
+            position: absolute;
+            z-index: 1;
+            filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+        }
+
+        .message-image {
+            width: 250px;
+            height: 190px;
+            object-fit: contain;
+            position: absolute;
+            z-index: 10;
+            opacity: 0;
+            transform: scale(0.8) translateY(20px) rotate(-2deg);
+            transition: opacity 0.8s ease 0.5s, transform 0.8s ease 0.5s;
+        }
+
+        .message-image.show {
+            opacity: 1 !important;
+            transform: scale(1) translateY(-20px) rotate(-2deg) !important;
+            display: block !important;
+        }
+
+        .button-close {
+            width: 150px;
+            height: 60px;
+            object-fit: contain;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .button-close:hover {
+            transform: translateY(-3px) scale(1.05);
+            filter: brightness(1.1) drop-shadow(0 8px 15px rgba(0,0,0,0.3));
+        }
+
+        .button-close:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        /* 반응형 디자인 */
+        @media (max-height: 700px) {
+            .container {
+                transform: scale(0.85);
+            }
+        }
+
+        @media (max-height: 600px) {
+            .container {
+                transform: scale(0.75);
+            }
+        }
+
+        @media (max-width: 850px) {
+            .container {
+                transform: scale(0.9);
+            }
+        }
+
+        /* 로딩 상태 */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #333;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+        }
+
+        /* 이미지 로드 실패 시 대체 스타일 */
+        .image-error {
+            background: rgba(255,255,255,0.9);
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 14px;
+            text-align: center;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 첫 번째 화면: 닫힌 상태 -->
+        <div class="screen-closed" id="screenClosed">
+            <img class="title-image-closed" 
+                 src="images/title-closed.png" 
+                 alt="제목" 
+                 onerror="this.style.display='none'">
+            
+            <img class="envelope-closed" 
+                 src="images/envelope-closed.png" 
+                 alt="닫힌 편지봉투"
+                 onerror="handleImageError(this, '닫힌 편지봉투')">
+            
+            <img class="button-open" 
+                 src="images/button-open.png" 
+                 alt="열기 버튼"
+                 id="openButton"
+                 onerror="handleImageError(this, '열기')">
+        </div>
+
+        <!-- 두 번째 화면: 열린 상태 -->
+        <div class="screen-open" id="screenOpen">
+            <img class="title-image-open" 
+                 src="images/title-open.png" 
+                 alt="제목" 
+                 onerror="this.style.display='none'">
+            
+            <div class="envelope-section">
+                <img class="envelope-open" 
+                     src="images/envelope-open.png" 
+                     alt="열린 편지봉투"
+                     onerror="handleImageError(this, '열린 편지봉투')">
+                
+                <img class="message-image" 
+                     src="" 
+                     alt="메시지"
+                     id="messageImage"
+                     onerror="console.log('Message image failed to load:', this.src);"
+                     onload="console.log('Message image loaded successfully:', this.src)">
+            </div>
+            
+            <img class="button-close" 
+                 src="images/button-close.png" 
+                 alt="닫기 버튼"
+                 id="closeButton"
+                 onerror="handleImageError(this, '닫기')">
+        </div>
+    </div>
+
+    <script>
+        // 총 메시지 개수
+        const totalMessages = 40;
+
+        const screenClosed = document.getElementById('screenClosed');
+        const screenOpen = document.getElementById('screenOpen');
+        const openButton = document.getElementById('openButton');
+        const closeButton = document.getElementById('closeButton');
+        const messageImage = document.getElementById('messageImage');
+
+        // 랜덤 메시지 선택 함수
+        function getRandomMessage() {
+            const randomIndex = Math.floor(Math.random() * totalMessages) + 1;
+            return `messages/${randomIndex}.png`;
+        }
+
+        // 편지봉투 열기 함수
+        function openEnvelope() {
+            // 랜덤 메시지 선택
+            const randomMessage = getRandomMessage();
+            console.log('Loading message:', randomMessage); // 디버깅용
+            messageImage.src = randomMessage;
+            
+            // 화면 전환
+            screenClosed.classList.add('hidden');
+            screenOpen.classList.add('visible');
+            
+            // 메시지 이미지 강제 표시
+            messageImage.style.display = 'block';
+            messageImage.style.opacity = '1';
+            messageImage.style.transform = 'scale(1) translateY(-20px) rotate(-2deg)';
+            
+            // 메시지 이미지 애니메이션
+            setTimeout(() => {
+                messageImage.classList.add('show');
+            }, 300);
+        }
+
+        // 편지봉투 닫기 함수
+        function closeEnvelope() {
+            // 메시지 이미지 숨기기
+            messageImage.classList.remove('show');
+            
+            // 화면 전환
+            setTimeout(() => {
+                screenOpen.classList.remove('visible');
+                screenClosed.classList.remove('hidden');
+            }, 300);
+        }
+
+        // 이미지 에러 처리 함수
+        function handleImageError(img, altText) {
+            // 메시지 이미지가 아닌 경우에만 숨기기
+            if (!img.classList.contains('message-image')) {
+                img.style.display = 'none';
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'image-error';
+                errorDiv.style.width = img.className.includes('title') ? '600px' : 
+                                      img.className.includes('envelope') ? '400px' : '150px';
+                errorDiv.style.height = img.className.includes('title') ? '80px' : 
+                                       img.className.includes('envelope') ? '300px' : '60px';
+                errorDiv.textContent = altText + ' 이미지가 없습니다';
+                img.parentNode.insertBefore(errorDiv, img.nextSibling);
+            } else {
+                // 메시지 이미지 에러의 경우 대체 텍스트만 표시
+                console.log('Message image error:', img.src);
+                img.style.display = 'block';
+                img.style.background = 'rgba(255,255,255,0.9)';
+                img.style.border = '2px dashed #ccc';
+                img.alt = altText;
+            }
+        }
+
+        // 이벤트 리스너 추가
+        openButton.addEventListener('click', openEnvelope);
+        closeButton.addEventListener('click', closeEnvelope);
+
+        // 키보드 단축키 (스페이스바로 열기/닫기)
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                if (screenClosed.classList.contains('hidden')) {
+                    closeEnvelope();
+                } else {
+                    openEnvelope();
+                }
+            }
+        });
+
+        // 이미지 미리 로드 (성능 향상)
+        function preloadImages() {
+            const imagePaths = [
+                'images/title-closed.png',
+                'images/title-open.png',
+                'images/envelope-closed.png',
+                'images/envelope-open.png',
+                'images/button-open.png',
+                'images/button-close.png'
+            ];
+            
+            imagePaths.forEach(path => {
+                const img = new Image();
+                img.src = path;
+            });
+        }
+
+        // 페이지 로드 완료 후 이미지 미리 로드
+        window.addEventListener('load', preloadImages);
+    </script>
+</body>
+</html>
